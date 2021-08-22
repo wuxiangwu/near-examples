@@ -74,8 +74,11 @@
 
       </div>
 
+      <!-- <div class="text-center">
+        <button @click="saveAudioMix" class="vue-audio-mixer-download-mix" :class="{'recording':recording}">1Record and download mix</button>
+      </div> -->
       <div class="text-center">
-        <button @click="saveAudioMix" class="vue-audio-mixer-download-mix" :class="{'recording':recording}">Record and download mix</button>
+        <button @click="saveConfig" class="vue-audio-mixer-download-mix" :class="{'recording':recording}">保存到区块链</button>
       </div>
      
      
@@ -321,7 +324,18 @@ export default {
       this.track_load_error = track_url;
 
     },
-
+    saveConfig() {
+      let data = {
+        tracks: this.tracks,
+        master:{
+          "pan":parseFloat(this.masterPanValue),
+          "gain":parseFloat(this.masterGainValue),
+          "muted":this.masterMuted
+        }
+      }
+      this.$emit('save',data)
+      return
+    },
     saveAudioMix(){
         this.stop();
         this.recording = true;

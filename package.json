@@ -10,7 +10,6 @@
   "dependencies": {
     "core-js": "^2.6.5",
     "vue": "^2.6.10",
-    "vue-audio-mixer": "^1.2.2",
     "near-api-js": "^0.27.0",
     "rollup-plugin-postcss-export": "^1.0.3"
   },

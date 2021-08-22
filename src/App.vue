@@ -1,10 +1,16 @@
 <template>
   <div style="text-align: center;">
-    <div v-if="signedIn" @click="logOut">Login out</div>
-    <div v-if="!signedIn" @click="requestSignIn">Login in</div>
-
-    <div>{{proposalsLen}}</div>
-    <div>{{proposals}}</div>
+    <button class="btn" v-if="signedIn" @click="logOut">退出登录</button>
+    <button class="btn" v-if="!signedIn" @click="requestSignIn">登录</button>
+    <div>
+      <a
+        target="_blank"
+        href="https://explorer.testnet.near.org/accounts/abel-test.testnet"
+        >去浏览器查看交易信息</a
+      >
+    </div>
+    <!-- <div>{{proposalsLen}}</div>
+    <div>{{proposals}}</div> -->
     <div style="position:relative; display: inline-block; ">
       <vue-audio-mixer
         :config="config"
@@ -13,6 +19,7 @@
         :showPan="true"
         :showTotalTime="true"
         @input="mixerInput"
+        @save="mixerSave"
         @loaded="mixerLoaded"
       />
     </div>
@@ -20,18 +27,27 @@
 </template>
 
 <script>
-import VueAudioMixer from "vue-audio-mixer";
-import "vue-audio-mixer/dist/vue-audio-mixer.min.css";
+//import VueAudioMixer from "vue-audio-mixer";
+//import "vue-audio-mixer/dist/vue-audio-mixer.min.css";
+import VueAudioMixer from "./components/vue-audio-mixer/dist/vue-audio-mixer.esm.js";
+import "./components/vue-audio-mixer/dist/vue-audio-mixer.esm.css";
 import * as nearAPI from "near-api-js";
-const ContractName = "dev-1629442049275-78217956173064";
-const GAS = "200000000000000"
+import getConfig from "./config";
 
 export const {
-	utils: {
-		format: {
-			formatNearAmount, parseNearAmount
-		}
-	}
+  GAS,
+  networkId,
+  nodeUrl,
+  walletUrl,
+  nameSuffix,
+  contractName,
+  contractMethods,
+} = getConfig();
+
+export const {
+  utils: {
+    format: { formatNearAmount, parseNearAmount },
+  },
 } = nearAPI;
 export default {
   name: "App",
@@ -107,77 +123,61 @@ export default {
       },
       signedIn: false,
       accountId: "",
-      _walletConnection:null,
-      proposals:null,
-      proposalsLen:0,
-      clearInternave:0,
-      isInit:true
+      _walletConnection: null,
+      proposals: null,
+      proposalsLen: 0,
+      clearInternave: 0,
+      isInit: true,
     };
   },
   created() {
-    this._initNear().then(async () => {
-      //debugger
-      /* this.setState({
-        connected: true,
-        signedIn: !!this._accountId,
-        accountId: this._accountId,
-      }); */
-      //debugger
-      this.getProposals()
-      //debugger
-    });
+    this._initNear().then(async () => {});
   },
   methods: {
-    async getProposals(){
-      this.proposals = await this._contract.get_proposals({
-        from_index: 0,
-        limit: 100,
-      });
-      this.proposalsLen = await this._contract.get_num_proposals();
-    },
-    async mixerInput() {
-      //debugger;
-      if(this.isInit){
-        this.isInit = false
+    async mixerSave(res) {
+      if(!this.signedIn){
+        alert("请先登录！")
         return;
       }
       let data = {
-          proposal: {
-            target: "paul",
-            description: "test",
-            kind: {
-              type: "Payout",
-              amount: "1000000000000000000000000",
-            },
-          },
+        claim: JSON.stringify(res)
       };
-      clearTimeout(this.clearInternave)
-      this.clearInternave = setTimeout(async ()=>{
-        let res = await this._contract.add_proposal(data,GAS,parseNearAmount('1'))
-        this.getProposals()
-      },1000)
-      //debugger
+      let ret = await this._contract.insert_claim(data) //,GAS,parseNearAmount('1'))
+      alert("保存成功，去浏览器查看交易信息")
+      window.location.href="https://explorer.testnet.near.org/accounts/abel-test.testnet"
     },
-    mixerLoaded() {
-      //debugger;
+    async mixerInput(res) {
+      /* if (this.isInit) {
+        this.isInit = false;
+        return;
+      }
+      let data = {
+        claim: JSON.stringify(res),
+      };
+      clearTimeout(this.clearInternave);
+      this.clearInternave = setTimeout(async () => {
+        let res = await this._contract.insert_claim(data); //,GAS,parseNearAmount('1'))
+        console.log("res:", res);
+      }, 1000); */
     },
+    mixerLoaded() {},
     async requestSignIn() {
       const appTitle = "NEAR NFT";
-      await this._walletConnection.requestSignIn(ContractName, appTitle);
+      await this._walletConnection.requestSignIn(contractName, appTitle);
     },
 
     async logOut() {
       this._walletConnection.signOut();
       this._accountId = null;
-      this.signedIn = !!this._accountId
-      this.accountId = this._accountId
+      this.signedIn = !!this._accountId;
+      this.accountId = this._accountId;
     },
     async _initNear() {
       const nearConfig = {
-        networkId: "default",
-        nodeUrl: "https://rpc.testnet.near.org",
-        contractName: ContractName,
-        walletUrl: "https://wallet.testnet.near.org",
+        networkId,
+        nodeUrl,
+        contractName: contractName,
+        walletUrl,
       };
       const keyStore = new nearAPI.keyStores.BrowserLocalStorageKeyStore();
       const near = await nearAPI.connect(
@@ -187,15 +187,14 @@ export default {
       this._nearConfig = nearConfig;
       this._near = near;
 
-      this._walletConnection = new nearAPI.WalletConnection(near, ContractName);
+      this._walletConnection = new nearAPI.WalletConnection(near, contractName);
       this._accountId = this._walletConnection.getAccountId();
 
       this._account = this._walletConnection.account();
-      this.signedIn = !!this._accountId
+      this.signedIn = !!this._accountId;
       //debugger
-      this._contract = new nearAPI.Contract(this._account, ContractName, {
-        viewMethods: ["get_proposals", "get_num_proposals"],
-        changeMethods: ["add_proposal"],
+      this._contract = new nearAPI.Contract(this._account, contractName, {
+        ...contractMethods,
       });
     },
   },
@@ -210,5 +209,11 @@ export default {
   text-align: center;
   color: #2c3e50;
   margin-top: 60px;
+}
+.btn{
+  border-radius: 12px;
+  background-color: blue;
+  color:#fff;
+  padding:8px 12px;
 }
 </style>
