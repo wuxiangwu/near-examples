@@ -1,0 +1,93 @@
+.vue-audio-mixer-fader-thumb{
+    touch-action: none;
+}
+
+
+.vue-audio-mixer-slider{
+  height: #{$meter-height}px;
+  position: absolute;
+  width: 50%;
+  right:0px;
+}
+
+.vue-audio-mixer-fader-slider-row, .vue-audio-mixer-fader-slider-row-right{
+  position:absolute;
+  width:100%;
+  background: black;
+  height:1px;
+  width:4px;
+  left:50%;
+  margin-left: -10px;
+}
+
+.vue-audio-mixer-fader-slider-row-right{
+  margin-left: 4px;
+}
+
+.vue-audio-mixer-fader-slider-track{
+  position: absolute;
+  height:90%;
+  background: black;
+  width:2px;
+  margin-left: -2px;
+  left:50%; 
+  margin-top: 1rem;
+}
+
+.vue-audio-mixer-fader-thumb {
+
+      position: absolute;
+      z-index: 1;
+      border: none;
+      height: 3rem;
+      width: 1.5rem;
+      left: 50%;
+      margin-left: -0.75rem;
+      margin-top: -2rem;
+      border-radius: 0px;
+      
+      cursor: move;
+      user-select: none;
+      
+      background: 
+      repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 5px,
+        rgba(0,0,0,1) 6px
+      ),
+   
+      linear-gradient(0deg, 
+        rgb(70,70,70) 0%, 
+        rgb(90,90,90) 14%, 
+        rgb(20,20,20) 15%, 
+        rgb(20,20,20) 50%,
+        rgb(90,90,90) 84%,
+        rgb(20,20,20) 85%,
+        rgb(30,30,30) 100%
+      );
+      box-shadow: 
+        //0 0 0 2px rgba(0,0,0,.25) inset,
+        0 .25rem .5rem 0 rgba(0,0,0,.5);
+      
+      &:after {
+        content: '';
+        position: absolute;
+        top: 50%;
+        left: 0; right: 0;
+        margin-top: -1px;
+        height: 3px;
+        background: rgba(255,255,255,.75);
+      }
+    
+}
+  
+
+
+
+.slider_value{
+  position: absolute;
+  right: 10px;
+  top:37px;
+  font-size: 10px;
+}
