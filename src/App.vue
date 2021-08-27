@@ -19,6 +19,7 @@
         :showPan="true"
         :showTotalTime="true"
         @input="mixerInput"
+        @mint="mixerMint"
         @save="mixerSave"
         @loaded="mixerLoaded"
       />
@@ -58,6 +59,7 @@ export default {
     return {
       is_loaded: false,
       newconfig: {},
+      tokenId: "",
       config: {
         tracks: [
           {
@@ -135,16 +137,47 @@ export default {
   },
   methods: {
     async mixerSave(res) {
-      if(!this.signedIn){
-        alert("请先登录！")
+      if (!this.signedIn) {
+        alert("请先登录！");
+        return;
+      }
+      if (!this.tokenId) {
+        alert("请先mint！");
         return;
       }
       let data = {
-        claim: JSON.stringify(res)
+        token_id: this.tokenId,
+        receiver_id: "paultest.testnet",
+        memo: "111transfer ownership",
       };
-      let ret = await this._contract.insert_claim(data) //,GAS,parseNearAmount('1'))
-      alert("保存成功，去浏览器查看交易信息")
-      window.location.href="https://explorer.testnet.near.org/accounts/abel-test.testnet"
+      let ret = await this._contract.nft_transfer(
+        data,
+        GAS,
+        parseNearAmount("0.000000000000000000000001")
+      ); //,GAS,parseNearAmount('1'))
+      alert("transfer成功，去浏览器查看交易信息");
+      window.location.href =
+        "https://explorer.testnet.near.org/accounts/rhythm4nft.testnet";
+    },
+    async mixerMint(res) {
+      if (!this.signedIn) {
+        alert("请先登录！");
+        return;
+      }
+      this.tokenId = "tid" + new Date().getTime();
+      let data = {
+        token_id: this.tokenId,
+        token_owner_id: "rhythm4nft.testnet", // this._accountId,
+        token_metadata: {
+          title: "Olympus Mons",
+          config: JSON.stringify(res),
+          description: "Tallest mountain in charted solar system",
+          copies: 1,
+        },
+      };
+      let ret = await this._contract.nft_mint(data, GAS, parseNearAmount("1")); //,GAS,parseNearAmount('1'))
+      //let ret = await this._contract.nft_metadata()
+      alert("mint成功，去浏览器查看交易信息");
     },
     async mixerInput(res) {
       /* if (this.isInit) {
@@ -210,10 +243,10 @@ export default {
   color: #2c3e50;
   margin-top: 60px;
 }
-.btn{
+.btn {
   border-radius: 12px;
   background-color: blue;
-  color:#fff;
-  padding:8px 12px;
+  color: #fff;
+  padding: 8px 12px;
 }
 </style>

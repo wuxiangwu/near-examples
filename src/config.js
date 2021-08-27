@@ -1,4 +1,4 @@
-const contractName = 'abel-test.testnet'//'dev-1629431119980-32207067362499';//dev-1621302059600-80550158376073
+const contractName = 'rhythm4nft.testnet'//'abel-test.testnet'//'dev-1629431119980-32207067362499';//dev-1621302059600-80550158376073
 
 export default function getConfig(isServer = false) {
   let config = {
@@ -15,8 +15,8 @@ export default function getConfig(isServer = false) {
       GAS: "200000000000000",
       DEFAULT_NEW_ACCOUNT_AMOUNT: "20",
       contractMethods: {
-        changeMethods: ["insert_claim", "revoke_claim", "transfer_claim"],
-        viewMethods: ["get_claim_owner_id"],
+        changeMethods: ["nft_mint", "nft_transfer", "new_default_meta"],
+        viewMethods: ["nft_metadata"],
       },
     };
   }

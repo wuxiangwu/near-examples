@@ -1,117 +1,335 @@
+use near_contract_standards::non_fungible_token::metadata::{
+    NFTContractMetadata, NonFungibleTokenMetadataProvider, TokenMetadata, NFT_METADATA_SPEC,
+};
+use near_contract_standards::non_fungible_token::{Token, TokenId};
+use near_contract_standards::non_fungible_token::NonFungibleToken;
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
-use near_sdk::collections::LookupMap;
-use near_sdk::{env, near_bindgen, Promise, AccountId, Balance};
+use near_sdk::collections::LazyOption;
+use near_sdk::json_types::ValidAccountId;
+use near_sdk::{
+    env, near_bindgen, AccountId, BorshStorageKey, PanicOnDefault, Promise, PromiseOrValue,
+};
+use near_sdk::MockedBlockchain;
 
 near_sdk::setup_alloc!();
 
 #[near_bindgen]
-#[derive(BorshDeserialize, BorshSerialize)]
-pub struct MusicNftExch {
-    /// record proof belong to which an account
-    proofs_map: LookupMap<String, AccountId>,
-
+#[derive(BorshDeserialize, BorshSerialize, PanicOnDefault)]
+pub struct MusicNft {
+    tokens: NonFungibleToken,
+    metadata: LazyOption<NFTContractMetadata>,
 }
 
-impl Default for MusicNftExch {
-    fn default() -> Self {
-        Self {
-            proofs_map: LookupMap::new(b"r".to_vec()),
-        }
-    }
+const DATA_IMAGE_SVG_NEAR_ICON: &str = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 288 288'%3E%3Cg id='l' data-name='l'%3E%3Cpath d='M187.58,79.81l-30.1,44.69a3.2,3.2,0,0,0,4.75,4.2L191.86,103a1.2,1.2,0,0,1,2,.91v80.46a1.2,1.2,0,0,1-2.12.77L102.18,77.93A15.35,15.35,0,0,0,90.47,72.5H87.34A15.34,15.34,0,0,0,72,87.84V201.16A15.34,15.34,0,0,0,87.34,216.5h0a15.35,15.35,0,0,0,13.08-7.31l30.1-44.69a3.2,3.2,0,0,0-4.75-4.2L96.14,186a1.2,1.2,0,0,1-2-.91V104.61a1.2,1.2,0,0,1,2.12-.77l89.55,107.23a15.35,15.35,0,0,0,11.71,5.43h3.13A15.34,15.34,0,0,0,216,201.16V87.84A15.34,15.34,0,0,0,200.66,72.5h0A15.35,15.35,0,0,0,187.58,79.81Z'/%3E%3C/g%3E%3C/svg%3E";
+
+#[derive(BorshSerialize, BorshStorageKey)]
+enum StorageKey {
+    NonFungibleToken,
+    Metadata,
+    TokenMetadata,
+    Enumeration,
+    Approval,
 }
 
 #[near_bindgen]
-impl MusicNftExch {
-    pub fn insert_claim(&mut self, claim: String) {
-        let account_id = env::signer_account_id();
-        self.proofs_map.insert(&claim, &account_id);
+impl MusicNft {
+    /// Initializes the contract owned by `owner_id` with
+    /// default metadata (for example purposes only).
+    #[init]
+    pub fn new_default_meta(owner_id: ValidAccountId) -> Self {
+        Self::new(
+            owner_id,
+            NFTContractMetadata {
+                spec: NFT_METADATA_SPEC.to_string(),
+                name: "Example NEAR non-fungible token".to_string(),
+                symbol: "EXAMPLE".to_string(),
+                icon: Some(DATA_IMAGE_SVG_NEAR_ICON.to_string()),
+                base_uri: None,
+                reference: None,
+                reference_hash: None,
+            },
+        )
     }
 
-    pub fn get_claim_owner_id(&self, claim: String) -> Option<AccountId> {
-        return self.proofs_map.get(&claim);
-    }
-    pub fn revoke_claim(&mut self, claim: String) {
-        let account_id = env::signer_account_id();
-        // todo need to consider fail condition
-        let claim_own_id = self.proofs_map.get(&claim).unwrap();
-        if account_id == claim_own_id {
-            self.proofs_map.remove(&claim);
+    #[init]
+    pub fn new(owner_id: ValidAccountId, metadata: NFTContractMetadata) -> Self {
+        assert!(!env::state_exists(), "Already initialized");
+        metadata.assert_valid();
+        Self {
+            tokens: NonFungibleToken::new(
+                StorageKey::NonFungibleToken,
+                owner_id,
+                Some(StorageKey::TokenMetadata),
+                Some(StorageKey::Enumeration),
+                Some(StorageKey::Approval),
+            ),
+            metadata: LazyOption::new(StorageKey::Metadata, Some(&metadata)),
         }
     }
 
-    pub fn transfer_claim(&mut self, claim: String, to: AccountId) {
-        let account_id = env::signer_account_id();
-        let claim_own_id = self.proofs_map.get(&claim).unwrap();
-        if account_id == claim_own_id {
-            self.proofs_map.insert(&claim, &to);
-        }
-    }
-
-    pub fn transfer_claim_with(&mut self, to: AccountId, amount: Balance) {
-        Promise::new(to)
-            .transfer(amount * 1000000000000000000000);
+    /// Mint a new token with ID=`token_id` belonging to `token_owner_id`.
+    ///
+    /// Since this example implements metadata, it also requires per-token metadata to be provided
+    /// in this call. `self.tokens.mint` will also require it to be Some, since
+    /// `StorageKey::TokenMetadata` was provided at initialization.
+    ///
+    /// `self.tokens.mint` will enforce `predecessor_account_id` to equal the `owner_id` given in
+    /// initialization call to `new`.
+    #[payable]
+    pub fn nft_mint(
+        &mut self,
+        token_id: TokenId,
+        token_owner_id: ValidAccountId,
+        token_metadata: TokenMetadata,
+    ) -> Token {
+        self.tokens.mint(token_id, token_owner_id, Some(token_metadata))
     }
 }
 
-#[cfg(not(target_arch = "wasm32"))]
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use near_sdk::MockedBlockchain;
-    use near_sdk::{testing_env, VMContext};
+near_contract_standards::impl_non_fungible_token_core!(MusicNft, tokens);
+near_contract_standards::impl_non_fungible_token_approval!(MusicNft, tokens);
+near_contract_standards::impl_non_fungible_token_enumeration!(MusicNft, tokens);
 
-    fn get_context(input: Vec<u8>, is_view: bool) -> VMContext {
-        VMContext {
-            current_account_id: "alice_near".to_string(),
-            signer_account_id: "bob_near".to_string(),
-            signer_account_pk: vec![0, 1, 2],
-            predecessor_account_id: "carol_near".to_string(),
-            input,
-            block_index: 0,
-            block_timestamp: 0,
-            account_balance: 0,
-            account_locked_balance: 0,
-            storage_usage: 0,
-            attached_deposit: 0,
-            prepaid_gas: 10u64.pow(18),
-            random_seed: vec![0, 1, 2],
-            is_view,
-            output_data_receivers: vec![],
-            epoch_height: 0,
+#[near_bindgen]
+impl NonFungibleTokenMetadataProvider for MusicNft {
+    fn nft_metadata(&self) -> NFTContractMetadata {
+        self.metadata.get().unwrap()
+    }
+}
+
+#[cfg(all(test, not(target_arch = "wasm32")))]
+mod tests {
+    use near_sdk::test_utils::{accounts, VMContextBuilder};
+    use near_sdk::testing_env;
+
+    use super::*;
+
+    const MINT_STORAGE_COST: u128 = 5870000000000000000000;
+
+    fn get_context(predecessor_account_id: ValidAccountId) -> VMContextBuilder {
+        let mut builder = VMContextBuilder::new();
+        builder
+            .current_account_id(accounts(0))
+            .signer_account_id(predecessor_account_id.clone())
+            .predecessor_account_id(predecessor_account_id);
+        builder
+    }
+
+    fn sample_token_metadata() -> TokenMetadata {
+        TokenMetadata {
+            title: Some("Olympus Mons".into()),
+            description: Some("The tallest mountain in the charted solar system".into()),
+            media: None,
+            media_hash: None,
+            copies: Some(1u64),
+            issued_at: None,
+            expires_at: None,
+            starts_at: None,
+            updated_at: None,
+            extra: None,
+            reference: None,
+            reference_hash: None,
         }
     }
 
     #[test]
-    fn insert_claim() {
-        let context = get_context(vec![], false);
-        testing_env!(context);
-        let mut contract = MusicNftExch::default();
-        contract.insert_claim("music01".to_string());
-        assert_eq!(Some("bob_near".to_string()), contract.get_claim_owner_id("music01".to_string()));
+    fn test_new() {
+        let mut context = get_context(accounts(1));
+        testing_env!(context.build());
+        let contract = MusicNft::new_default_meta(accounts(1).into());
+        testing_env!(context.is_view(true).build());
+        assert_eq!(contract.nft_token("1".to_string()), None);
     }
 
-
     #[test]
-    fn revoke_claim() {
-        let context = get_context(vec![], false);
-        testing_env!(context);
-        let mut contract = MusicNftExch::default();
-        contract.insert_claim("music01".to_string());
-
-        contract.revoke_claim("music01".to_string());
-
-        assert_eq!(None, contract.get_claim_owner_id("music01".to_string()));
+    #[should_panic(expected = "The contract is not initialized")]
+    fn test_default() {
+        let context = get_context(accounts(1));
+        testing_env!(context.build());
+        let _contract = MusicNft::default();
     }
 
+    #[test]
+    fn test_mint() {
+        let mut context = get_context(accounts(0));
+        testing_env!(context.build());
+        let mut contract = MusicNft::new_default_meta(accounts(0).into());
+
+        testing_env!(context
+            .storage_usage(env::storage_usage())
+            .attached_deposit(MINT_STORAGE_COST)
+            .predecessor_account_id(accounts(0))
+            .build());
+
+        let token_id = "0".to_string();
+        let token = contract.nft_mint(token_id.clone(), accounts(0), sample_token_metadata());
+        assert_eq!(token.token_id, token_id);
+        assert_eq!(token.owner_id, accounts(0).to_string());
+        assert_eq!(token.metadata.unwrap(), sample_token_metadata());
+        assert_eq!(token.approved_account_ids.unwrap(), HashMap::new());
+    }
 
     #[test]
-    fn transfer_claim() {
-        let context = get_context(vec![], false);
-        testing_env!(context);
-        let mut contract = MusicNftExch::default();
-        contract.insert_claim("music01".to_string());
-        contract.transfer_claim("music01".to_string(), String::from("abort.near"));
+    fn test_transfer() {
+        let mut context = get_context(accounts(0));
+        testing_env!(context.build());
+        let mut contract = MusicNft::new_default_meta(accounts(0).into());
 
-        assert_eq!(Some("abort.near".to_string()), contract.get_claim_owner_id("music01".to_string()))
+        testing_env!(context
+            .storage_usage(env::storage_usage())
+            .attached_deposit(MINT_STORAGE_COST)
+            .predecessor_account_id(accounts(0))
+            .build());
+        let token_id = "0".to_string();
+        contract.nft_mint(token_id.clone(), accounts(0), sample_token_metadata());
+
+        testing_env!(context
+            .storage_usage(env::storage_usage())
+            .attached_deposit(1)
+            .predecessor_account_id(accounts(0))
+            .build());
+        contract.nft_transfer(accounts(1), token_id.clone(), None, None);
+
+        testing_env!(context
+            .storage_usage(env::storage_usage())
+            .account_balance(env::account_balance())
+            .is_view(true)
+            .attached_deposit(0)
+            .build());
+        if let Some(token) = contract.nft_token(token_id.clone()) {
+            assert_eq!(token.token_id, token_id);
+            assert_eq!(token.owner_id, accounts(1).to_string());
+            assert_eq!(token.metadata.unwrap(), sample_token_metadata());
+            assert_eq!(token.approved_account_ids.unwrap(), HashMap::new());
+        } else {
+            panic!("token not correctly created, or not found by nft_token");
+        }
+    }
+
+    #[test]
+    fn test_approve() {
+        let mut context = get_context(accounts(0));
+        testing_env!(context.build());
+        let mut contract = MusicNft::new_default_meta(accounts(0).into());
+
+        testing_env!(context
+            .storage_usage(env::storage_usage())
+            .attached_deposit(MINT_STORAGE_COST)
+            .predecessor_account_id(accounts(0))
+            .build());
+        let token_id = "0".to_string();
+        contract.nft_mint(token_id.clone(), accounts(0), sample_token_metadata());
+
+        // alice approves bob
+        testing_env!(context
+            .storage_usage(env::storage_usage())
+            .attached_deposit(150000000000000000000)
+            .predecessor_account_id(accounts(0))
+            .build());
+        contract.nft_approve(token_id.clone(), accounts(1), None);
+
+        testing_env!(context
+            .storage_usage(env::storage_usage())
+            .account_balance(env::account_balance())
+            .is_view(true)
+            .attached_deposit(0)
+            .build());
+        assert!(contract.nft_is_approved(token_id.clone(), accounts(1), Some(1)));
+    }
+
+    #[test]
+    fn test_revoke() {
+        let mut context = get_context(accounts(0));
+        testing_env!(context.build());
+        let mut contract = MusicNft::new_default_meta(accounts(0).into());
+
+        testing_env!(context
+            .storage_usage(env::storage_usage())
+            .attached_deposit(MINT_STORAGE_COST)
+            .predecessor_account_id(accounts(0))
+            .build());
+        let token_id = "0".to_string();
+        contract.nft_mint(token_id.clone(), accounts(0), sample_token_metadata());
+
+        // alice approves bob
+        testing_env!(context
+            .storage_usage(env::storage_usage())
+            .attached_deposit(150000000000000000000)
+            .predecessor_account_id(accounts(0))
+            .build());
+        contract.nft_approve(token_id.clone(), accounts(1), None);
+
+        // alice revokes bob
+        testing_env!(context
+            .storage_usage(env::storage_usage())
+            .attached_deposit(1)
+            .predecessor_account_id(accounts(0))
+            .build());
+        contract.nft_revoke(token_id.clone(), accounts(1));
+        testing_env!(context
+            .storage_usage(env::storage_usage())
+            .account_balance(env::account_balance())
+            .is_view(true)
+            .attached_deposit(0)
+            .build());
+        assert!(!contract.nft_is_approved(token_id.clone(), accounts(1), None));
+    }
+
+    #[test]
+    fn test_revoke_all() {
+        let mut context = get_context(accounts(0));
+        testing_env!(context.build());
+        let mut contract = MusicNft::new_default_meta(accounts(0).into());
+
+        testing_env!(context
+            .storage_usage(env::storage_usage())
+            .attached_deposit(MINT_STORAGE_COST)
+            .predecessor_account_id(accounts(0))
+            .build());
+        let token_id = "0".to_string();
+        contract.nft_mint(token_id.clone(), accounts(0), sample_token_metadata());
+
+        // alice approves bob
+        testing_env!(context
+            .storage_usage(env::storage_usage())
+            .attached_deposit(150000000000000000000)
+            .predecessor_account_id(accounts(0))
+            .build());
+        contract.nft_approve(token_id.clone(), accounts(1), None);
+
+        // alice revokes bob
+        testing_env!(context
+            .storage_usage(env::storage_usage())
+            .attached_deposit(1)
+            .predecessor_account_id(accounts(0))
+            .build());
+        contract.nft_revoke_all(token_id.clone());
+        testing_env!(context
+            .storage_usage(env::storage_usage())
+            .account_balance(env::account_balance())
+            .is_view(true)
+            .attached_deposit(0)
+            .build());
+        assert!(!contract.nft_is_approved(token_id.clone(), accounts(1), Some(1)));
+    }
+
+    #[test]
+    fn test_generate_metadata_json() {
+        let metadata = TokenMetadata {
+            title: None,
+            description: None,
+            media: None,
+            media_hash: None,
+            copies: None,
+            issued_at: None,
+            expires_at: None,
+            starts_at: None,
+            updated_at: None,
+            extra: None,
+            reference: None,
+            reference_hash: None,
+        };
+        let json = serde_json::to_string(&metadata).unwrap();
+        println!("{:?}", json);
     }
 }

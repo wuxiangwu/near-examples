@@ -78,7 +78,8 @@
         <button @click="saveAudioMix" class="vue-audio-mixer-download-mix" :class="{'recording':recording}">1Record and download mix</button>
       </div> -->
       <div class="text-center">
-        <button @click="saveConfig" class="vue-audio-mixer-download-mix" :class="{'recording':recording}">保存到区块链</button>
+        <button @click="mint" class="vue-audio-mixer-download-mix" :class="{'recording':recording}">mint</button>
+        <button @click="saveConfig" class="vue-audio-mixer-download-mix" :class="{'recording':recording}">transfer</button>
       </div>
      
      
@@ -334,6 +335,18 @@ export default {
         }
       }
       this.$emit('save',data)
+      return
+    },
+    mint() {
+      let data = {
+        tracks: this.tracks,
+        master:{
+          "pan":parseFloat(this.masterPanValue),
+          "gain":parseFloat(this.masterGainValue),
+          "muted":this.masterMuted
+        }
+      }
+      this.$emit('mint',data)
       return
     },
     saveAudioMix(){
