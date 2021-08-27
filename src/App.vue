@@ -23,7 +23,7 @@
     <div>
       <a
         target="_blank"
-        href="https://explorer.testnet.near.org/accounts/abel-test.testnet"
+        href="https://explorer.testnet.near.org/accounts/rhythm4nft.testnet"
         >去浏览器查看交易信息</a
       >
     </div>
