@@ -1,14 +1,5 @@
 <template>
   <div style="text-align: center;">
-    <button class="btn" v-if="signedIn" @click="logOut">退出登录</button>
-    <button class="btn" v-if="!signedIn" @click="requestSignIn">登录</button>
-    <div>
-      <a
-        target="_blank"
-        href="https://explorer.testnet.near.org/accounts/abel-test.testnet"
-        >去浏览器查看交易信息</a
-      >
-    </div>
     <!-- <div>{{proposalsLen}}</div>
     <div>{{proposals}}</div> -->
     <div style="position:relative; display: inline-block; ">
@@ -23,6 +14,18 @@
         @save="mixerSave"
         @loaded="mixerLoaded"
       />
+    </div>
+    <div style="margin:16px 0;">
+      <button class="btn" v-if="signedIn" @click="logOut">退出登录</button>
+      <button class="btn" v-if="!signedIn" @click="requestSignIn">登录</button>
+    </div>
+    <div style="margin:16px 0;">receiver：<input :value="receiver"/></div>
+    <div>
+      <a
+        target="_blank"
+        href="https://explorer.testnet.near.org/accounts/abel-test.testnet"
+        >去浏览器查看交易信息</a
+      >
     </div>
   </div>
 </template>
@@ -58,6 +61,7 @@ export default {
   data: function() {
     return {
       is_loaded: false,
+      receiver: "paultest.testnet",
       newconfig: {},
       tokenId: "",
       config: {
@@ -147,7 +151,7 @@ export default {
       }
       let data = {
         token_id: this.tokenId,
-        receiver_id: "paultest.testnet",
+        receiver_id: this.receiver,
         memo: "111transfer ownership",
       };
       let ret = await this._contract.nft_transfer(
@@ -155,9 +159,9 @@ export default {
         GAS,
         parseNearAmount("0.000000000000000000000001")
       ); //,GAS,parseNearAmount('1'))
-      alert("transfer成功，去浏览器查看交易信息");
-      window.location.href =
-        "https://explorer.testnet.near.org/accounts/rhythm4nft.testnet";
+      alert("transfer成功");
+      /* window.location.href =
+        "https://explorer.testnet.near.org/accounts/rhythm4nft.testnet"; */
     },
     async mixerMint(res) {
       if (!this.signedIn) {
@@ -177,7 +181,7 @@ export default {
       };
       let ret = await this._contract.nft_mint(data, GAS, parseNearAmount("1")); //,GAS,parseNearAmount('1'))
       //let ret = await this._contract.nft_metadata()
-      alert("mint成功，去浏览器查看交易信息");
+      alert("mint成功");
     },
     async mixerInput(res) {
       /* if (this.isInit) {
