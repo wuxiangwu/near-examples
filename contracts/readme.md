@@ -22,8 +22,6 @@ near call rhythm4nft.testnet nft_transfer '{"token_id": "3", "receiver_id": "abe
 ```
 
 ## Testing this contract
-
-=====================
-```bash
+```
 cargo test -- --nocapture
 ```
