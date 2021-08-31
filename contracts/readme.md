@@ -24,3 +24,10 @@ near call rhythm4nft.testnet nft_mint '{"token_id": "3", "token_owner_id": "'rhy
 ```
 near call rhythm4nft.testnet nft_transfer '{"token_id": "3", "receiver_id": "abel01-test.testnet", "memo": "transfer ownership"}' --accountId rhythm4nft.testnet --deposit 0.000000000000000000000001
 ```
+
+## Testing this contract
+
+=====================
+```bash
+cargo test -- --nocapture
+```
