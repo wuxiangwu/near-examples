@@ -6,10 +6,6 @@
 ```
 near deploy --wasmFile target/wasm32-unknown-unknown/release/music_nft.wasm --accountId rhythm4nft.testnet
 ```
-## 合约地址
-```
-https://explorer.testnet.near.org/transactions/3uVUj3F1MtUU4cFDHRdu1W27ZdC8bHf56GDCThtesAuq
-```
 
 ## init 
 ```
